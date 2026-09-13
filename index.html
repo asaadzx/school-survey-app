@@ -32,6 +32,7 @@
     .btn-submit { background-color: #00a884; color: white; }
     .btn-qr { background-color: #8e44ad; color: white; }
     .btn-export { background-color: #0866ff; color: white; }
+    .btn-backup { background-color: #5b6472; color: white; }
 
     .counter { text-align: center; font-weight: bold; font-size: 16px; color: #65676b; margin-bottom: 8px; }
 
@@ -40,6 +41,12 @@
     .modal-content { background-color: #fff; padding: 20px; border-radius: 12px; text-align: center; max-width: 300px; width: 85%; }
     .modal-content img { width: 100%; max-width: 220px; height: auto; border-radius: 8px; margin: 10px 0; }
     .close-btn { background: #e74c3c; color: white; padding: 10px; border: none; border-radius: 6px; font-weight: bold; width: 100%; cursor: pointer; margin-top: 8px; }
+
+    /* CSV Backup Modal */
+    .csv-modal-content { max-width: 92%; width: 92%; text-align: left; }
+    .csv-modal-content h3 { margin: 0 0 6px; }
+    .csv-modal-content p { font-size: 13px; color: #555; margin: 0 0 10px; }
+    #rawCsvText { width: 100%; min-height: 320px; font-family: "Courier New", Courier, monospace; font-size: 12px; line-height: 1.4; padding: 10px; border: 2px solid #ccd0d5; border-radius: 8px; background: #fafafa; resize: vertical; }
   </style>
 </head>
 <body>
@@ -153,6 +160,7 @@
   <div class="card">
     <div class="counter" id="countDisplay">Logged Entries on Phone: 0</div>
     <button class="btn btn-export" onclick="exportToCSV()">DOWNLOAD CSV DATA</button>
+    <button class="btn btn-backup" onclick="showRawCSV()">SHOW BACKUP CSV TEXT</button>
   </div>
 
   <!-- QR Code Modal -->
@@ -161,6 +169,16 @@
       <h3>Scan to Visit School Website</h3>
       <img src="./qrcode.png" alt="School QR Code" onerror="this.parentElement.style.display='none'">
       <button class="close-btn" onclick="closeQRCode()">Close</button>
+    </div>
+  </div>
+
+  <!-- CSV Backup Modal -->
+  <div id="csvModal" class="modal">
+    <div class="modal-content csv-modal-content">
+      <h3>CSV Backup Text</h3>
+      <p>If the file download was blocked, long-press the text below to select &amp; copy it, then paste it into a file saved as <strong>.csv</strong>.</p>
+      <textarea id="rawCsvText" readonly wrap="off"></textarea>
+      <button class="close-btn" onclick="closeRawCSV()">Close</button>
     </div>
   </div>
 
@@ -235,17 +253,7 @@
       return '"' + s + '"';
     }
 
-    function exportToCSV() {
-      if (responses.length === 0) {
-        alert("No entries to export!");
-        return;
-      }
-
-      if (responses.length < 50) {
-        var confirmExport = confirm('You have logged ' + responses.length + ' responses. The target is 50+. Are you sure you want to download the CSV now?');
-        if (!confirmExport) return;
-      }
-
+    function generateCSVString() {
       var csv = '\uFEFF';
       csv += 'Collector,Gender,Classroom_Issue,Separated_Classes,Facility_Need,Canteen_Pref,Brands_Requested,Canteen_Fix,Schedule_Pref,Academic_Struggle,Timestamp\n';
 
@@ -264,15 +272,43 @@
                csvEscape(r.Timestamp) + '\n';
       }
 
-      var blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
-      var url = window.URL.createObjectURL(blob);
-      var a = document.createElement('a');
-      a.setAttribute('href', url);
-      a.setAttribute('download', 'survey_' + (document.getElementById('collector').value || 'data') + '.csv');
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
+      return csv;
+    }
+
+    function exportToCSV() {
+      if (responses.length === 0) {
+        alert("No entries to export!");
+        return;
+      }
+
+      if (responses.length < 50) {
+        var confirmExport = confirm('You have logged ' + responses.length + ' responses. The target is 50+. Are you sure you want to download the CSV now?');
+        if (!confirmExport) return;
+      }
+
+      var csv = generateCSVString();
+      var uri = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+      var fileName = 'survey_' + (document.getElementById('collector').value || 'data') + '.csv';
+
+      try {
+        var a = document.createElement('a');
+        a.setAttribute('href', uri);
+        a.setAttribute('download', fileName);
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (e) {
+        showRawCSV();
+      }
+    }
+
+    function showRawCSV() {
+      document.getElementById('rawCsvText').value = generateCSVString();
+      document.getElementById('csvModal').style.display = 'flex';
+    }
+
+    function closeRawCSV() {
+      document.getElementById('csvModal').style.display = 'none';
     }
 
     updateCount();
@@ -287,6 +323,10 @@
 
     document.getElementById('qrModal').addEventListener('click', function (e) {
       if (e.target === document.getElementById('qrModal')) closeQRCode();
+    });
+
+    document.getElementById('csvModal').addEventListener('click', function (e) {
+      if (e.target === document.getElementById('csvModal')) closeRawCSV();
     });
   </script>
 </body>
